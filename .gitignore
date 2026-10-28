@@ -1,0 +1,9 @@
+DASHBOARD.html
+cache/
+salidas/
+Prioridades de pago.xlsx
+rutas.txt
+*.pkl
+~$*
+__pycache__/
+*.pyc

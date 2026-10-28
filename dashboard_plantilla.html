@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tractocar · Centro de control de flota y caja</title>
+<script>try{var _t=localStorage.getItem('tc-theme');if(_t)document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
+<style>
+<!--@incluir:estilos.css-->
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5ab0ff"/><stop offset="1" stop-color="#8a8dff"/></linearGradient></defs>
+        <rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="none" stroke="url(#lg)" stroke-width="1.6"/>
+        <ellipse cx="20" cy="20" rx="13" ry="5.2" transform="rotate(-28 20 20)" fill="none" stroke="url(#lg)" stroke-width="1.6"/>
+        <ellipse cx="20" cy="20" rx="13" ry="5.2" transform="rotate(32 20 20)" fill="none" stroke="url(#lg)" stroke-width="1.6" opacity=".55"/>
+        <circle cx="20" cy="20" r="3.4" fill="url(#lg)"/><circle cx="31.5" cy="13.5" r="2" fill="#ffffff"/>
+      </svg>
+      <div><b>TRACTOCAR</b><span>Centro de control<br>de flota y caja</span></div>
+    </div>
+    <nav id="nav" aria-label="Secciones"></nav>
+    <div class="sidefoot">
+      <div class="live"><i></i><span id="liveTxt"></span></div>
+      <button class="themebtn" id="themeBtn" type="button" aria-label="Cambiar tema"></button>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div><div class="eyebrow" id="hEyebrow"></div><h1 id="hTitle"></h1><p class="sub" id="hSub"></p></div>
+      <div class="chips" id="hchips"></div>
+    </header>
+    <main>
+      <section id="s-resumen"></section>
+      <section id="s-caja"></section>
+      <section id="s-flujo"></section>
+      <section id="s-prioridades"></section>
+      <section id="s-consulta"></section>
+      <section id="s-cartera"></section>
+      <section id="s-pagos"></section>
+      <section id="s-viajes"></section>
+      <section id="s-clientes"></section>
+      <section id="s-ajover"></section>
+      <section id="s-alertas"></section>
+    </main>
+  </div>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+window.DATA = /*__DATA__*/null;
+</script>
+<script>
+<!--@incluir:nucleo.js-->
+<!--@incluir:graficos.js-->
+<!--@incluir:motor.js-->
+<!--@incluir:tab_resumen.js-->
+<!--@incluir:tab_anticipos_pivot.js-->
+<!--@incluir:tab_operacion.js-->
+<!--@incluir:tab_plan_caja.js-->
+<!--@incluir:tab_flujo.js-->
+<!--@incluir:tab_prioridades.js-->
+<!--@incluir:tab_ajover.js-->
+<!--@incluir:tab_consulta.js-->
+<!--@incluir:tab_cartera_alertas.js-->
+<!--@incluir:arranque.js-->
+</script>
+</body>
+</html>
