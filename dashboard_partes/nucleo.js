@@ -25,6 +25,8 @@ const ICON = {
   resumen:'<rect x="3" y="3" width="7" height="9" rx="1.6"/><rect x="14" y="3" width="7" height="5" rx="1.6"/><rect x="14" y="12" width="7" height="9" rx="1.6"/><rect x="3" y="16" width="7" height="5" rx="1.6"/>',
   caja:'<path d="M5 21V4M5 4h12l-2.3 4.2L17 12.4H5"/>',
   flujo:'<path d="M3 17l5-5 4 4 8-9"/><path d="M15 7h5v5"/><path d="M3 21h18"/>',
+  fuga:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5 1.4 0 2.6.4 3.6 1.1M15 14l6 6M21 14l-6 6"/>',
+  tramites:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM8.5 12h7M8.5 16h5"/>',
   prioridades:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 11.2a3 3 0 100-6M18.5 20c0-2.4-1-4-2.5-5"/>',
   consulta:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/><path d="M8 12.5c.6-1.3 1.5-2 2.5-2s1.9.7 2.5 2"/><circle cx="10.5" cy="8.4" r="1.1"/>',
   pagos:'<rect x="2.5" y="6" width="19" height="12" rx="2.2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.01M18 14.5v.01"/>',
@@ -42,7 +44,7 @@ const MOON='<svg viewBox="0 0 24 24"><path d="M20.5 14.2A8.5 8.5 0 119.8 3.5a6.8
 
 // ---------- navegacion y cabecera
 const GROUPS = [
-  ['Caja', [['resumen','Resumen'],['caja','A quién pagar primero'],['flujo','Flujo de caja'],['prioridades','Prioridades de analistas'],['consulta','Afiliado / placa']]],
+  ['Caja', [['resumen','Resumen'],['caja','A quién pagar primero'],['flujo','Flujo de caja'],['fuga','Afiliados que frenaron'],['tramites','Trámites atascados'],['prioridades','Prioridades de analistas'],['consulta','Afiliado / placa']]],
   ['Operación', [['pagos','Pagos del mes'],['viajes','Viajes del mes'],['clientes','Por cliente'],['ajover','Ajover y Nouvelle']]],
   ['Cartera', [['cartera','Pendiente por pagar'],['alertas','Alertas']]]];
 const TABS = GROUPS.flatMap(g=>g[1]);
@@ -50,6 +52,8 @@ const HEAD = {
   resumen:['Visión general','Resumen de caja y cartera','Qué se pagó, qué se debe y qué tan vencido está.'],
   caja:['Asignación de caja','A quién pagar primero','Escribe cuánto tienes y te digo a quién pagarle, cuánto y por qué. Verlo por afiliado, por cliente o por placa.'],
   flujo:['Proyección','Flujo de caja','Cuánto vas a deber vencido las próximas semanas y cuánto pagar por semana para ponerte al día.'],
+  fuga:['Retención','Afiliados que frenaron','Afiliados que cargaban y dejaron de cargar: llámalos antes de perderlos. Va aparte de la prioridad de pago.'],
+  tramites:['Destrabar','Trámites atascados','Dinero que ya se debe a los afiliados pero no se puede pagar por papeles: facturas de saldo que faltan, cumplidos pendientes y retenciones.'],
   prioridades:['Analistas','Prioridades de analistas','Lo que los analistas piden priorizar y por qué. Carlos lo ve también en el flujo de caja.'],
   consulta:['Consulta','Afiliado / placa','Pagos del mes, deuda (vencida y no vencida), viajes y prioridad de un afiliado o una placa en una sola hoja.'],
   pagos:['Tesorería','Pagos del mes','Todo lo pagado en el mes: anticipos, saldos, proveedores y gastos.'],
@@ -184,6 +188,13 @@ function seg(el, opts, cb, init=0){
   cb(init);
 }
 const cuenta = (rows,f) => { const r=rows.filter(f); return [r.length, r.reduce((s,x)=>s+(x.exigible||0),0)]; };
+
+// descarga un CSV (separador ;, con BOM para Excel): enc = encabezados, filas = arreglos de valores
+function descargarCSV(nombre, enc, filas){
+  const q = v => '"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const blob = new Blob(['﻿'+[enc.map(q).join(';'),...filas.map(f=>f.map(v=>typeof v==='number'?v:q(v)).join(';'))].join('\r\n')],{type:'text/csv;charset=utf-8'}), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nombre+'_'+(D.meta.hoy||'').split('/').reverse().join('-')+'.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
 
 // ---------- tabla con busqueda, filtro, orden y totales
 function table(el, rows, cols, opt={}){

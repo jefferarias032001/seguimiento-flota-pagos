@@ -19,7 +19,8 @@
   const PS=(D.pagos_semana||[]), semOk=p=>new Date(p.sem+'T12:00:00').getTime()+6*864e5<HOY.getTime();      // semana completa: ya termino el domingo
   const U8=PS.filter(semOk).slice(-8), avgOf=(a,k)=>a.length?a.reduce((s,p)=>s+(p[k]||0),0)/a.length:0;
   const medOf=(a,k)=>{ const v=a.map(p=>p[k]||0).sort((x,y)=>x-y), n=v.length; return n?(n%2?v[(n-1)/2]:(v[n/2-1]+v[n/2])/2):0; };
-  const RIT={act:avgOf(U8,'saldo_act'),tot:avgOf(U8,'saldo'),totMed:medOf(U8,'saldo'),vence:avgOf(U8.filter(p=>p.vence!=null),'vence'),ant:avgOf(U8,'ant'),prov:avgOf(U8,'prov'),n:U8.length};
+  // ritmo TIPICO = mediana de las ultimas 8 semanas (no la promedia un lote grande); el promedio con lotes se muestra aparte
+  const RIT={act:medOf(U8,'saldo_act'),tot:medOf(U8,'saldo'),actProm:avgOf(U8,'saldo_act'),totProm:avgOf(U8,'saldo'),totMed:medOf(U8,'saldo'),vence:avgOf(U8.filter(p=>p.vence!=null),'vence'),ant:avgOf(U8,'ant'),prov:avgOf(U8,'prov'),n:U8.length};
   const st={W:RIT.act>0?Math.round(RIT.act/1e6)*1e6:250e6,W0:null,H:12,scope:'activos',est:'amplia',respetar:true}, HMAX=30;
   const ritmo=()=>Math.round((st.scope==='activos'?RIT.act:RIT.tot)/1e6)*1e6;    // en millones enteros, igual que el presupuesto
   const veces=x=>x>=1.9&&x<=2.1?'el doble de':`${nf1.format(x)} veces`;
@@ -41,7 +42,7 @@
       <div class="card ctrl" id="fctrl">
         <div><label class="lab" for="fw">¿Cuánto puedes pagar por semana?</label>
           <div class="budget"><span>$</span><input id="fw" type="number" min="0" step="10" value="${Math.round(st.W/1e6)}" inputmode="decimal" aria-label="Presupuesto semanal en millones de pesos"><span>M</span></div>
-          <div class="presets">${RIT.act>0?`<button class="mini" type="button" data-ritmo="1" id="fritmo" title="Lo que pagas hoy en saldos a afiliados, promedio de las últimas ${RIT.n} semanas"></button>`:''}${[100,200,300,500,800].map(v=>`<button class="mini" type="button" data-w="${v}">$${v} M</button>`).join('')}</div></div>
+          <div class="presets">${RIT.act>0?`<button class="mini" type="button" data-ritmo="1" id="fritmo" title="Lo que pagas en una semana típica de saldos (mediana de las últimas ${RIT.n} semanas, sin contar los lotes grandes)"></button>`:''}${[100,200,300,500,800].map(v=>`<button class="mini" type="button" data-w="${v}">$${v} M</button>`).join('')}</div></div>
         <div><span class="lab">Semanas a mirar</span><div class="seg" id="fh">${[4,8,12].map(h=>`<button type="button" data-h="${h}" class="${h===st.H?'on':''}">${h} semanas</button>`).join('')}</div></div>
         <label class="chk"><input type="checkbox" id="fr" checked> Respetar las prioridades de los analistas <span class="cnt" style="margin-left:6px">${PRIO.size?PRIO.size+' registradas':'aún no hay'}</span></label>
         <details class="opts"><summary>Más opciones</summary>
@@ -63,7 +64,7 @@
       <li><b>Viajes terminados hace más de ${LAG+PLAZO} días sin factura</b> (${LAG} días normales para facturar + ${PLAZO} de plazo): por su fecha ya deberían estar vencidos. Se cuentan en la semana 1 porque ya se los debes a los afiliados, pero para poder pagarlos primero hay que generar la factura del saldo. La lista está en «Más detalle».</li>
       <li><b>Lo que pagas cada semana</b>: con el presupuesto de la semana se paga a lo que esté vencido, con la misma escalera de «A quién pagar primero» (analistas en Alta primero, luego críticos, importantes y a programar). Lo que no se paga queda como vencido y pasa a la semana siguiente.</li>
       <li><b>Para ponerte al día</b> se busca el presupuesto semanal constante que deja el vencido en cero al final de las semanas elegidas; «que tu deuda no crezca» es el mínimo para que no suba en 8 semanas.</li>
-      <li><b>Tu ritmo actual</b> es el promedio de lo que pagaste por semana en saldos a afiliados en las últimas ${RIT.n} semanas completas, con todo y los lotes grandes (en el flujo solo cuenta lo que llega a los afiliados que cargan o a quienes entran en el cálculo). Lo que «se te venció» cada semana es un estimado: el saldo de cada viaje (96% de la compra menos el anticipo) ${LAG+PLAZO} días después de crearse. El plazo real de pago se mide desde la fecha del viaje hasta la fecha en que se pagó su saldo.</li>
+      <li><b>Tu ritmo típico</b> es la mediana de lo que pagaste por semana en saldos a afiliados en las últimas ${RIT.n} semanas completas (no lo infla un lote grande como el del 10 y 11 de octubre; el promedio con lotes se muestra aparte) (en el flujo solo cuenta lo que llega a los afiliados que cargan o a quienes entran en el cálculo). Lo que «se te venció» cada semana es un estimado: el saldo de cada viaje (96% de la compra menos el anticipo) ${LAG+PLAZO} días después de crearse. El plazo real de pago se mide desde la fecha del viaje hasta la fecha en que se pagó su saldo.</li>
       <li><b>Anticipos y proveedores</b>: los viajes nuevos también piden anticipos (≈ 85% de la compra) que se giran al crear el viaje, y se paga a proveedores y gastos. No están en la proyección, que es solo la de saldos a afiliados; se muestran como referencia en «Cómo vienes pagando». Tampoco están los cobros a clientes.</li></ul>`;
   }
 
@@ -96,7 +97,7 @@
   function renderHero(){
     const {run,base,S0,np0,alDia,H}=cur, wk=run.weeks, W=st.W, ai=avgIn(), endBase=base.weeks[H-1].stockPagable, end=wk[H-1].stockPagable, ne=noEmpeorar();
     const viejo=sumBy(C,'venc_libre')-(S0+np0), nPay=run.U.reduce((n,c,i)=>n+(run.sched[i][1]>1?1:0),0);
-    const rt=ritmo(), esRit=rt>0&&Math.abs(W-rt)<=.03*rt, quien=esRit?`A tu ritmo actual (<b>${money(W)} por semana</b>)`:`Con <b>${money(W)} por semana</b>`;
+    const rt=ritmo(), esRit=rt>0&&Math.abs(W-rt)<=.03*rt, quien=esRit?`A tu ritmo típico (<b>${money(W)} por semana</b>)`:`Con <b>${money(W)} por semana</b>`;
     const vsRit=(!esRit&&rt>0)?` Eso es ${veces(W/rt)} tu ritmo actual (${money(rt)} por semana), con el que ${cur.habAl>0?`te pondrías al día en ${cur.habAl} semanas`:`no llegas a cero en ${HMAX} semanas`}.`:'';
     let head,sub;
     if(S0<=cur.tol){ head='Hoy no tienes deuda vencida con estos afiliados'; sub=`Cada semana se suman ≈ ${money(ai)} a lo vencido. Mientras los pagues a tiempo te mantienes al día.`; }
@@ -112,7 +113,7 @@
     $('#fhero',el).innerHTML=`<span class="eyebrow">Tu agente de pagos</span><h2 class="hl">${head}</h2><p class="hsub">${sub}</p>
       <div class="trio"><div><span>Hoy debes</span><b>${money(S0)}</b><small>vencido a ${scopeTxt()}${st.scope==='activos'&&viejo>1?` · aparte ${money(viejo)} de saldo antiguo (sin viajes en 30 días)`:''}${np0>1?` · ${money(np0)} marcados «No pagar por ahora»`:''}</small></div>
         <div><span>Se suma cada semana</span><b>≈ ${money(ai)}</b><small>a lo vencido: facturas que cumplen ${PLAZO} días, viajes por facturar y viajes nuevos (promedio de ${H} semanas)</small></div>
-        <div><span>${esRit?'Tu ritmo actual':'Tú pagas por semana'}</span><b>${money(W)}</b><small>${esRit?`lo que pagas en saldos por semana (promedio de ${RIT.n} semanas) · `:(rt>0?`${veces(W/rt)} tu ritmo actual (${money(rt)}) · `:'')}${nf.format(nPay)} afiliados reciben pago la semana 1${st.W0!=null?` · semana 1: ${money(st.W0)}`:''}</small></div></div>`
+        <div><span>${esRit?'Tu ritmo típico':'Tú pagas por semana'}</span><b>${money(W)}</b><small>${esRit?`semana típica de saldos (mediana de ${RIT.n} semanas; con los lotes grandes el promedio es ${money(st.scope==='activos'?RIT.actProm:RIT.totProm)}) · `:(rt>0?`${veces(W/rt)} tu ritmo actual (${money(rt)}) · `:'')}${nf.format(nPay)} afiliados reciben pago la semana 1${st.W0!=null?` · semana 1: ${money(st.W0)}`:''}</small></div></div>`
       +(al.length?`<ul class="alerts">${al.map(a=>`<li><span>${a}</span></li>`).join('')}</ul>`:'');
   }
 
@@ -155,7 +156,7 @@
       +`</tbody><tfoot><tr><td>Total (${PS.length} semanas)</td><td class="num">${full(sumBy(PS,'saldo'))}</td><td class="num">${full(sumBy(PS,'saldo_act'))}</td><td class="num">${full(sumBy(sv,'vence'))}</td><td class="num">${full(sumBy(sv,'saldo')-sumBy(sv,'vence'))}</td></tr></tfoot></table></div>`;
     const top2=(lo.top||[]).slice(0,2), pct2=(lo.total>0&&top2.length===2)?(top2[0].importe+top2[1].importe)/lo.total:0, cells=[];
     if(pl) cells.push(`<div><b>${nf.format(Math.round(pl.p50))} días</b><span>tardas en pagar un saldo, contando desde el viaje (lo normal son ${pl.normal}). Solo el ${Math.round(pl.pct_normal*100)}% se paga a tiempo.</span></div>`);
-    cells.push(`<div><b>${money(RIT.tot)}</b><span>pagas por semana en saldos (promedio de ${RIT.n} semanas; una semana típica son ${money(RIT.totMed)}). Se te vencen ≈ ${money(RIT.vence)}.</span></div>`);
+    cells.push(`<div><b>${money(RIT.totMed)}</b><span>pagas en una semana típica de saldos (mediana de ${RIT.n} semanas; con los lotes grandes el promedio sube a ${money(RIT.totProm)}). Se te vencen ≈ ${money(RIT.vence)} por semana.</span></div>`);
     if(pct2>=.2) cells.push(`<div><b>${Math.round(pct2*100)}%</b><span>de lo pagado en saldos desde agosto salió en solo 2 días (${top2.map(x=>fmtD(new Date(x.fecha+'T12:00:00'))).join(' y ')}): pagas por lotes.</span></div>`);
     if(al&&al.con_vencido>0) cells.push(`<div><b>${nf.format(al.pagados)} de ${nf.format(al.con_vencido)}</b><span>afiliados que cargan y tienen vencido recibieron algún saldo en las últimas 4 semanas; ${nf.format(al.sin_pago)} no recibieron nada (${money(al.venc_sin_pago)}).</span></div>`);
     box.innerHTML=figCard({title:'Cómo vienes pagando',sub:'Saldos pagados a afiliados cada semana frente a lo que se te venció (estimado) · datos reales del archivo de pagos',

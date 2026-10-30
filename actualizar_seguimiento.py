@@ -1019,7 +1019,50 @@ def escribir_dashboard(L):
     con_v = cja[(cja["venc_libre"] > 0) & cja["afn"].isin(act_n)]
     alcance_pago = dict(con_vencido=int(len(con_v)), pagados=int(con_v["afn"].isin(pag4).sum()), sin_pago=int((~con_v["afn"].isin(pag4)).sum()),
                         venc_sin_pago=float(con_v.loc[~con_v["afn"].isin(pag4), "venc_libre"].sum()))
+    # --- afiliados que frenaron: tenian 3+ viajes en (hoy-51d, hoy-21d] y su ritmo semanal de los ultimos 21 dias cayo a 40% o menos (o a cero)
+    fg_e = ee_p[(~ee_p["propia"])].copy()
+    fg_prev = fg_e[(fg_e["fecha"] > hoy - pd.Timedelta(days=51)) & (fg_e["fecha"] <= hoy - pd.Timedelta(days=21))]
+    fg_now = fg_e[fg_e["fecha"] > hoy - pd.Timedelta(days=21)]
+    fg_a = fg_prev.groupby("afn").agg(v_antes=("eid", "nunique"), compra_antes=("compra", "sum"), ult_viaje_antes=("fecha", "max"))
+    fg_a["v_ahora"] = fg_now.groupby("afn")["eid"].nunique()
+    fg_a["compra_ahora"] = fg_now.groupby("afn")["compra"].sum()
+    fg_a = fg_a.fillna({"v_ahora": 0, "compra_ahora": 0})
+    fg_a = fg_a[(fg_a["v_antes"] >= 3) & ((fg_a["v_ahora"] / 3.0) <= 0.4 * (fg_a["v_antes"] / (30 / 7.0)))].reset_index()
+    fg_a["compra_sem_antes"] = fg_a["compra_antes"] / (30 / 7.0)
+    fg_a["compra_sem_ahora"] = fg_a["compra_ahora"] / 3.0
+    fg_cli = fg_prev.sort_values("compra", ascending=False).drop_duplicates("afn").set_index("afn")["cliente"]
+    fg_sal = pvx[es_sal].groupby("prov_n")["fecha_pago"].max()
+    fg_a = fg_a.merge(cja[["afn", "afiliado", "nivel", "venc_libre", "dias_sin_viaje"]], on="afn", how="left")
+    fg_a["cliente"] = fg_a["afn"].map(fg_cli).fillna("")
+    fg_a["dias_sin_saldo"] = (hoy - fg_a["afn"].map(fg_sal)).dt.days
+    fg_a["afiliado"] = fg_a["afiliado"].fillna(fg_a["afn"])
+    fg_a["nivel"] = fg_a["nivel"].fillna("0-SIN SALDO")
+    fg_a["venc_libre"] = fg_a["venc_libre"].fillna(0)
+    fg_a["ult_viaje_antes"] = fg_a["ult_viaje_antes"].dt.strftime("%Y-%m-%d")
+    fg_a = fg_a.sort_values("compra_antes", ascending=False)
+    fg_a = fg_a[["afn", "afiliado", "nivel", "cliente", "v_antes", "v_ahora", "compra_sem_antes", "compra_sem_ahora", "venc_libre", "dias_sin_saldo", "dias_sin_viaje", "ult_viaje_antes"]].round(0)
+    fuga = json.loads(fg_a.to_json(orient="records", force_ascii=False))
+    # --- dinero atascado por tramites: saldo estimado sin factura (con cumplido SI o pendiente) y facturas retenidas, por afiliado
+    tr_e = ee_p[(~ee_p["propia"]) & (ee_p["estado"] == "COMPLETADO") & (ee_p["por_liquidar"] > 0) & (ee_p["edad"] > 7)].copy()
+    tr_e["liq_si"] = np.where(tr_e["cumplido"] == "SI", tr_e["por_liquidar"], 0.0)
+    tr_e["liq_pend"] = np.where(tr_e["cumplido"] != "SI", tr_e["por_liquidar"], 0.0)
+    tr_e["n_si"] = (tr_e["cumplido"] == "SI").astype(int)
+    tr_e["n_pend"] = (tr_e["cumplido"] != "SI").astype(int)
+    tr_a = tr_e.groupby("afn").agg(liq_si=("liq_si", "sum"), n_si=("n_si", "sum"), liq_pend=("liq_pend", "sum"), n_pend=("n_pend", "sum"))
+    tr_r = cx[cx["ret_activa"]].copy()
+    tr_r["dias_ret"] = (L["corte_cxp"] - tr_r["f_ret"]).dt.days
+    tr_ra = tr_r.groupby("prov_n").agg(retenido=("imp", "sum"), dias_ret=("dias_ret", "max"), n_ret=("fac", "size"))
+    tr_ra["mot_ret"] = tr_r.groupby(["prov_n", "mot_ret"])["imp"].sum().reset_index().sort_values("imp", ascending=False).drop_duplicates("prov_n").set_index("prov_n")["mot_ret"]
+    tr_a = tr_a.join(tr_ra, how="outer").fillna({"liq_si": 0, "n_si": 0, "liq_pend": 0, "n_pend": 0, "retenido": 0, "n_ret": 0, "dias_ret": 0, "mot_ret": ""}).reset_index().rename(columns={"index": "afn"})
+    tr_a = tr_a.merge(cja[["afn", "afiliado", "nivel"]], on="afn", how="inner")
+    tr_a["activo"] = tr_a["afn"].isin(act_n).astype(int)
+    tr_a["total"] = tr_a["liq_si"] + tr_a["liq_pend"] + tr_a["retenido"]
+    tr_a = tr_a[tr_a["total"] > 0].sort_values("total", ascending=False)
+    tr_a["mot_ret"] = tr_a["mot_ret"].astype(str)
+    tr_a = tr_a[["afn", "afiliado", "nivel", "activo", "liq_si", "n_si", "liq_pend", "n_pend", "retenido", "n_ret", "mot_ret", "dias_ret", "total"]].round(0)
+    tramites = json.loads(tr_a.to_json(orient="records", force_ascii=False))
     data = dict(
+        fuga=fuga, tramites=tramites,
         prioridades=pri_filas, prio_meta=pri_meta, pipeline=json.loads(pp.to_json(orient="records", force_ascii=False)),
         lag_fact=lag_fact, pagos_semana=pagos_semana, plazo_pago=plazo_pago, lotes_saldo=lotes_saldo, alcance_pago=alcance_pago,
         caja=caja, caja_cli=json.loads(ccj.to_json(orient="records", force_ascii=False)),
