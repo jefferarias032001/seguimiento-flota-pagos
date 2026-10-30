@@ -52,9 +52,15 @@ Notas sobre los viajes:
 - Flota propia (TRACTOCAR, NIT 900503325) no genera pago a afiliado.
 - Los archivos 2025 solo se usan para ubicar la placa de envíos viejos.
 
+## Git y link público (GitHub Pages cifrado)
+- Repositorio: `jefferarias032001/seguimiento-flota-pagos`. Solo se sube el código; `.gitignore` deja fuera `DASHBOARD.html`, `cache\`, `salidas\`, `Prioridades de pago.xlsx` y `rutas.txt` (datos reales o regenerables). En otro PC: clonar, `pip install pandas numpy openpyxl`, cambiar las rutas de OneDrive al inicio de `actualizar_seguimiento.py` y ejecutar `ACTUALIZAR.bat`.
+- Día a día: `git add -A`, `git commit -m "qué cambió"`, `git push`.
+- **Link público**: `python -I publicar_pages.py` pide una contraseña (mínimo 10 caracteres, no se guarda) y crea `docs\index.html` con el dashboard cifrado (AES-256); luego `git add docs`, commit y push. En GitHub: Settings → Pages → rama `main`, carpeta `/docs`. Hay que repetirlo después de cada actualización. El archivo cifrado es público: la seguridad depende de que la contraseña sea larga; el correo que pide la página es solo un filtro visual.
+
 ## Cómo está armado
 - `actualizar_seguimiento.py` lee los archivos, calcula todo y escribe `DASHBOARD.html`.
 - `prioridades_analistas.py` crea y lee el Excel de prioridades (el script principal lo carga desde su misma carpeta).
+- `publicar_pages.py` cifra el dashboard para publicarlo en GitHub Pages (ver sección anterior).
 - `rutas.txt` (opcional, se crea solo): `PRIORIDADES` y `PUBLICAR_DASHBOARD_EN`.
 - `dashboard_plantilla.html` es el cascarón; `dashboard_partes\` trae las piezas que el script une al generar: `estilos.css` (sistema visual), `nucleo.js` (componentes, navegación, tooltips), `graficos.js` (barras apiladas y líneas semanales), `motor.js` (reglas de pago compartidas: prioridades de analistas, escalera y proyección semana a semana) y un `tab_*.js` por pestaña (`tab_plan_caja`, `tab_flujo`, `tab_prioridades`, `tab_ajover`, `tab_consulta`, `tab_operacion`, `tab_cartera_alertas`, `tab_anticipos_pivot`, `tab_resumen`). Para cambiar el diseño o una pestaña se edita la pieza correspondiente y se vuelve a ejecutar `ACTUALIZAR.bat`. La carpeta `dashboard_partes` debe quedar junto al script.
 
